@@ -1,18 +1,15 @@
 package com.linglonghu
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
 import android.view.KeyEvent
-import android.view.View
 import android.webkit.*
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -22,26 +19,19 @@ import java.io.IOException
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private lateinit var refreshLayout: SwipeRefreshLayout
     private val BASE_URL = "https://rider.linglonghu.com"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+
+        val container = FrameLayout(this)
+        setContentView(container)
 
         webView = WebView(this)
-        refreshLayout = SwipeRefreshLayout(this)
-
-        val container = findViewById<FrameLayout>(R.id.webViewContainer)
-        refreshLayout.addView(webView)
-        container.addView(refreshLayout)
+        container.addView(webView)
 
         setupWebView()
         checkUpdate()
-
-        refreshLayout.setOnRefreshListener {
-            webView.reload()
-        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -60,13 +50,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                refreshLayout.isRefreshing = false
                 injectCustomJs()
-            }
-
-            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                super.onReceivedError(view, request, error)
-                refreshLayout.isRefreshing = false
             }
         }
 
@@ -93,10 +77,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun injectCustomJs() {
-        webView.evaluateJavascript("""
-            window.androidPlatform = true;
-            window.systemName = 'Android';
-        """.trimIndent(), null)
+        webView.evaluateJavascript(
+            "window.androidPlatform = true; window.systemName = 'Android';",
+            null
+        )
     }
 
     private fun checkUpdate() {
@@ -112,7 +96,10 @@ class MainActivity : AppCompatActivity() {
     private fun showUpdateDialog(version: String, changelog: String, apkUrl: String) {
         android.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.update_title))
-            .setMessage(String.format(getString(R.string.update_message), version) + "\n\n" + String.format(getString(R.string.update_changelog), changelog))
+            .setMessage(
+                String.format(getString(R.string.update_message), version) + "\n\n" +
+                String.format(getString(R.string.update_changelog), changelog)
+            )
             .setPositiveButton(getString(R.string.update_now)) { _, _ ->
                 downloadApk(apkUrl)
             }
@@ -146,9 +133,11 @@ class MainActivity : AppCompatActivity() {
                 while (inputStream?.read(buffer).also { bytesRead = it ?: -1 } != -1) {
                     outputStream.write(buffer, 0, bytesRead)
                     totalBytes += bytesRead
-                    val progress = ((totalBytes * 100) / contentLength).toInt()
-                    runOnUiThread {
-                        dialog.setMessage(String.format(getString(R.string.downloading), progress))
+                    if (contentLength > 0) {
+                        val progress = ((totalBytes * 100) / contentLength).toInt()
+                        runOnUiThread {
+                            dialog.setMessage(String.format(getString(R.string.downloading), progress))
+                        }
                     }
                 }
 
